@@ -1,0 +1,92 @@
+AWSTemplateFormatVersion : '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: cookbook and app packager for mh-opsworks
+
+Parameters:
+  BuildBucketName:
+    Type: String
+    Default: mh-opsworks-builder
+  CookbookCodebuildProjectName:
+    Type: String
+    Default: mh-opsworks-recipes-builder
+  LambdaFunctionName:
+    Type: String
+    Default: mh-opsworks-builder
+
+Resources:
+
+  BuildAPI:
+    Type: AWS::Serverless::Function
+    DependsOn: MhOpsworksBuilderRole
+    Properties:
+      Handler: builder.handler
+      Runtime: python3.6
+      Role: !GetAtt [MhOpsworksBuilderRole, Arn]
+      FunctionName: !Ref LambdaFunctionName
+      Environment:
+        Variables:
+          COOKBOOK_CODEBUILD_PROJECT: !Ref CookbookCodebuildProjectName
+      Events:
+        BuildCookbook:
+          Type: Api
+          Properties:
+            Path: /buildcookbook
+            Method: post
+      Tags:
+        Project: MH
+        OU: DE
+
+  BuildBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BuildBucketName
+      AccessControl: BucketOwnerFullControl
+      Tags:
+        - Key: Project
+          Value: MH
+        - Key: OU
+          Value: DE
+
+  CookbookBuildProject:
+    Type: AWS::CodeBuild::Project
+    DependsOn: MhOpsworksBuilderRole
+    Properties:
+      Name: !Ref CookbookCodebuildProjectName
+      TimeoutInMinutes: 5
+      Description: Prepackage mh-opsworks-recipes cookbook
+      Source:
+        Location: https://github.com/harvard-dce/mh-opsworks-recipes.git
+        Type: GITHUB
+      Environment:
+        ComputeType: BUILD_GENERAL1_SMALL
+        Type: LINUX_CONTAINER
+        Image: aws/codebuild/ruby:2.2.5
+      Artifacts:
+        Location: !Ref BuildBucket
+        Type: S3
+        Name: cookbooks
+      ServiceRole: !GetAtt [MhOpsworksBuilderRole, Arn]
+      Tags:
+        - Key: Project
+          Value: MH
+        - Key: OU
+          Value: DE
+
+  MhOpsworksBuilderRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: mh-opsworks-builder-service-role
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: codebuild.amazonaws.com
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AWSCodeBuildDeveloperAccess
+        - arn:aws:iam::aws:policy/AWSLambdaExecute
