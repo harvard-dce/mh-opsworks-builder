@@ -5,7 +5,7 @@ Description: cookbook and app packager for mh-opsworks
 Parameters:
   BuildBucketName:
     Type: String
-    Default: mh-opsworks-builder
+    Default: ""
   CookbookCodebuildProjectName:
     Type: String
     Default: mh-opsworks-recipes-builder
@@ -39,17 +39,6 @@ Resources:
         Project: MH
         OU: DE
 
-  BuildBucket:
-    Type: AWS::S3::Bucket
-    Properties:
-      BucketName: !Ref BuildBucketName
-      AccessControl: BucketOwnerFullControl
-      Tags:
-        - Key: Project
-          Value: MH
-        - Key: OU
-          Value: DE
-
   CookbookBuildProject:
     Type: AWS::CodeBuild::Project
     DependsOn: MhOpsworksBuilderRole
@@ -68,7 +57,7 @@ Resources:
           - Name: REVISION
             Value: !Ref CookbookDefaultRevision
       Artifacts:
-        Location: !Ref BuildBucket
+        Location: !Ref BuildBucketName
         Type: S3
         Name: cookbooks
       ServiceRole: !GetAtt [MhOpsworksBuilderRole, Arn]
