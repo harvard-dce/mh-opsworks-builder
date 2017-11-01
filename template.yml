@@ -9,6 +9,9 @@ Parameters:
   CookbookCodebuildProjectName:
     Type: String
     Default: mh-opsworks-recipes-builder
+  CookbookDefaultRevision:
+    Type: String
+    Default: develop
   LambdaFunctionName:
     Type: String
     Default: mh-opsworks-builder
@@ -61,6 +64,9 @@ Resources:
         ComputeType: BUILD_GENERAL1_SMALL
         Type: LINUX_CONTAINER
         Image: aws/codebuild/ruby:2.2.5
+        EnvironmentVariables:
+          - Name: REVISION
+            Value: !Ref CookbookDefaultRevision
       Artifacts:
         Location: !Ref BuildBucket
         Type: S3
