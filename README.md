@@ -45,3 +45,13 @@ If not using an existing bucket, create one:
 #### Register the webhoook
 
 Once the stack has completed buildout, check the resources list in the Cloudformation web console and click the link to the API Gateway instance. Find the API's "Prod" stage `buildcookbook` method and copy the invoke URL. It should look something like [https://foobarbaz.execute-api.us-east-1.amazonaws.com/Prod/buildcookbook](). Copy the URL and head over to the Github project. In "Settings" -> "Webhooks" choose "Add Webhook". Paste the URL into the "Payload URL" field, set the content-type to "application/json". Choose "Let me select individual events" and select "Create" and "Push". Submit and you're done.
+
+## Hipchat Notification
+
+The cloudformation template takes as a paramter a HipChat notification URL to allow posting CodeBuild
+build submissions and success status. If not provided, HipChat notifications will be disabled. The URL value
+should be provided as a parameter override to the `aws cloudformation deploy` command, like so...
+
+    --parameter-overrides BuildBucketName=[artifact-bucket-name] HipchatNotifyUrl=[url]
+
+The notfication URL for a room can be obtained via the "Integrations" web console of your HipChat account.

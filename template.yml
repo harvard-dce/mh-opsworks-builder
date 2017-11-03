@@ -15,6 +15,9 @@ Parameters:
   LambdaFunctionName:
     Type: String
     Default: mh-opsworks-builder
+  HipchatNotifyUrl:
+    Type: String
+    Default: ""
 
 Resources:
 
@@ -29,6 +32,7 @@ Resources:
       Environment:
         Variables:
           COOKBOOK_CODEBUILD_PROJECT: !Ref CookbookCodebuildProjectName
+          HIPCHAT_NOTIFY_URL: !Ref HipchatNotifyUrl
       Events:
         BuildCookbook:
           Type: Api
