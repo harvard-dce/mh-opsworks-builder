@@ -30,6 +30,10 @@ def handler(event, context):
     payload = json.loads(event["body"])
     revision = payload["ref"].split("/", 2)[-1]
 
+    # ignore branch deletions
+    if payload.get("deleted", False):
+        return { "statusCode": 204 }
+
     cb_params = {
         "projectName": BUILD_PROJECT,
         "sourceVersion": revision,
