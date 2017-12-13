@@ -28,7 +28,9 @@ def handler(event, context):
         return
 
     payload = json.loads(event["body"])
-    revision = payload["ref"].split("/", 2)[-1]
+
+    # "ref" will sometimes be just the branch name and sometimes prefixed with "refs/heads/"
+    revision = payload["ref"].replace("refs/heads/", "")
 
     # ignore branch deletions
     if payload.get("deleted", False):
