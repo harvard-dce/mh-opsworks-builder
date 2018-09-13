@@ -15,9 +15,6 @@ Parameters:
   LambdaFunctionName:
     Type: String
     Default: mh-opsworks-builder
-  HipchatNotifyUrl:
-    Type: String
-    Default: ""
 
 Resources:
 
@@ -32,7 +29,6 @@ Resources:
       Environment:
         Variables:
           COOKBOOK_CODEBUILD_PROJECT: !Ref CookbookCodebuildProjectName
-          HIPCHAT_NOTIFY_URL: !Ref HipchatNotifyUrl
       Events:
         BuildCookbook:
           Type: Api
@@ -89,29 +85,3 @@ Resources:
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/AWSCodeBuildDeveloperAccess
         - arn:aws:iam::aws:policy/AWSLambdaExecute
-
-  MhOpsworksBuilderNotifyEventRule:
-    Type: "AWS::Events::Rule"
-    Properties:
-      EventPattern:
-        source:
-          - "aws.codebuild"
-        detail-type:
-          - "CodeBuild Build State Change"
-        detail:
-          build-status:
-            - "FAILED"
-            - "SUCCEEDED"
-      State: "ENABLED"
-      Targets:
-        -
-          Arn: !GetAtt [BuildAPI, Arn]
-          Id: "TargetFunctionV1"
-  PermissionForEventsToInvokeLambda:
-    Type: "AWS::Lambda::Permission"
-    Properties:
-      FunctionName:
-        Ref: "LambdaFunctionName"
-      Action: "lambda:InvokeFunction"
-      Principal: "events.amazonaws.com"
-      SourceArn: !GetAtt [MhOpsworksBuilderNotifyEventRule, Arn]

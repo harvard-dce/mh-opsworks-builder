@@ -7,7 +7,7 @@ Using AWS Serverless + CodeBuild to provide Github webhooks services for auto-bu
 You'll need Python 2|3, plus the `awscli` package installed. Optionally, for local testing, you can use AWS's [sam](https://github.com/awslabs/aws-sam-local) tool.
 
 The following AWS services are used, so corresponding IAM permissions are necessary:
-* Cloudformration
+* CloudFormation
 * S3
 * API Gateway
 * Lambda
@@ -15,12 +15,12 @@ The following AWS services are used, so corresponding IAM permissions are necess
 
 ## Usage
 
-There are two (optionally three) commands to be run, the end result of which will be a Cloudformation stack containing all the resources necessary to act as a webhook that can be plugged into Github.
+There are two (optionally three) commands to be run, the end result of which will be a CloudFormation stack containing all the resources necessary to act as a webhook that can be plugged into Github.
 
 #### Create a bucket (optional)
 
 The build process requires an s3 bucket for two purposes:
-1. [storing local artifacts](http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-cli-package.html) specified in the Cloudformation template (e.g., our Lambda function code).
+1. [storing local artifacts](http://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/using-cfn-cli-package.html) specified in the CloudFormation template (e.g., our Lambda function code).
 2. storing the resulting CodeBuild artifacts, i.e., the packaged cookbook archives
 
 If not using an existing bucket, create one:
@@ -44,14 +44,4 @@ If not using an existing bucket, create one:
         
 #### Register the webhoook
 
-Once the stack has completed buildout, check the resources list in the Cloudformation web console and click the link to the API Gateway instance. Find the API's "Prod" stage `buildcookbook` method and copy the invoke URL. It should look something like [https://foobarbaz.execute-api.us-east-1.amazonaws.com/Prod/buildcookbook](). Copy the URL and head over to the Github project. In "Settings" -> "Webhooks" choose "Add Webhook". Paste the URL into the "Payload URL" field, set the content-type to "application/json". Choose "Let me select individual events" and select "Create" and "Push". Submit and you're done.
-
-## Hipchat Notification
-
-The cloudformation template takes as a paramter a HipChat notification URL to allow posting CodeBuild
-build submissions and success status. If not provided, HipChat notifications will be disabled. The URL value
-should be provided as a parameter override to the `aws cloudformation deploy` command, like so...
-
-    --parameter-overrides BuildBucketName=[artifact-bucket-name] HipchatNotifyUrl=[url]
-
-The notfication URL for a room can be obtained via the "Integrations" web console of your HipChat account.
+Once the stack has completed buildout, check the resources list in the CloudFormation web console and click the link to the API Gateway instance. Find the API's "Prod" stage `buildcookbook` method and copy the invoke URL. It should look something like [https://foobarbaz.execute-api.us-east-1.amazonaws.com/Prod/buildcookbook](). Copy the URL and head over to the Github project. In "Settings" -> "Webhooks" choose "Add Webhook". Paste the URL into the "Payload URL" field, set the content-type to "application/json". Choose "Let me select individual events" and select "Create" and "Push". Submit and you're done.
