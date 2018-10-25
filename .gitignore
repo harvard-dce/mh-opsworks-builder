@@ -1,2 +1,5 @@
 serverless-output.yml
 .idea/*
+dist/*
+.env
+venv/*

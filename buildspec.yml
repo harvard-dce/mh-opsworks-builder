@@ -1,0 +1,13 @@
+version: 0.2
+phases:
+  build:
+    commands:
+      - echo build/test started at `date`
+      - mvn clean install -DskipTests
+      - echo build/test completed on `date`
+      - ls
+      - ls build
+artifacts:
+  files:
+    - "**/opencast*.tar.gz"
+  discard-paths: yes

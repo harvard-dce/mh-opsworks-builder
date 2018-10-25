@@ -6,29 +6,46 @@ Parameters:
   BuildBucketName:
     Type: String
     Default: ""
-  CookbookCodebuildProjectName:
-    Type: String
-    Default: mh-opsworks-recipes-builder
-  CookbookDefaultRevision:
+  DefaultRevision:
     Type: String
     Default: develop
-  LambdaFunctionName:
+  BuildSpec:
     Type: String
-    Default: mh-opsworks-builder
 
 Resources:
 
-  BuildAPI:
+  MhOpsworksBuilderRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-service-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: codebuild.amazonaws.com
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: lambda.amazonaws.com
+      ManagedPolicyArns:
+      - arn:aws:iam::aws:policy/AWSCodeBuildDeveloperAccess
+      - arn:aws:iam::aws:policy/AWSLambdaExecute
+
+  BuilderFunction:
     Type: AWS::Serverless::Function
     DependsOn: MhOpsworksBuilderRole
     Properties:
       Handler: builder.handler
       Runtime: python3.6
       Role: !GetAtt [MhOpsworksBuilderRole, Arn]
-      FunctionName: !Ref LambdaFunctionName
+      FunctionName: !Sub "${AWS::StackName}"
       Environment:
         Variables:
-          COOKBOOK_CODEBUILD_PROJECT: !Ref CookbookCodebuildProjectName
+          STACK_NAME: !Sub "${AWS::StackName}"
+          COOKBOOK_BUILD_PROJECT: !Sub "cookbook-${AWS::StackName}"
+          OPENCAST_BUILD_PROJECT: !Sub "opencast-${AWS::StackName}"
       Events:
         BuildCookbook:
           Type: Api
@@ -43,7 +60,7 @@ Resources:
     Type: AWS::CodeBuild::Project
     DependsOn: MhOpsworksBuilderRole
     Properties:
-      Name: !Ref CookbookCodebuildProjectName
+      Name: !Sub "cookbook-${AWS::StackName}"
       TimeoutInMinutes: 5
       Description: Prepackage mh-opsworks-recipes cookbook
       Source:
@@ -55,9 +72,9 @@ Resources:
         Image: aws/codebuild/ruby:2.2.5
         EnvironmentVariables:
           - Name: REVISION
-            Value: !Ref CookbookDefaultRevision
+            Value: !Ref DefaultRevision
       Artifacts:
-        Location: !Ref BuildBucketName
+        Location: !Sub "{AWS::StackName}"
         Type: S3
         Name: cookbooks
       ServiceRole: !GetAtt [MhOpsworksBuilderRole, Arn]
@@ -67,21 +84,37 @@ Resources:
         - Key: OU
           Value: DE
 
-  MhOpsworksBuilderRole:
-    Type: AWS::IAM::Role
+  OpencastBuildsBucket:
+    Type: AWS::S3::Bucket
     Properties:
-      RoleName: mh-opsworks-builder-service-role
-      AssumeRolePolicyDocument:
-        Version: "2012-10-17"
-        Statement:
-        - Action: sts:AssumeRole
-          Effect: Allow
-          Principal:
-            Service: codebuild.amazonaws.com
-        - Action: sts:AssumeRole
-          Effect: Allow
-          Principal:
-            Service: lambda.amazonaws.com
-      ManagedPolicyArns:
-        - arn:aws:iam::aws:policy/AWSCodeBuildDeveloperAccess
-        - arn:aws:iam::aws:policy/AWSLambdaExecute
+      BucketName: !Sub "${AWS::StackName}-opencast"
+
+  OpencastBuildProject:
+    Type: AWS::CodeBuild::Project
+    DependsOn: MhOpsworksBuilderRole
+    Properties:
+      Name: !Sub "opencast-${AWS::StackName}"
+      TimeoutInMinutes: 30
+      BadgeEnabled: true
+      Source:
+        Location: "https://bitbucket.org/hudcede/matterhorn-dce-fork.git"
+        Type: BITBUCKET
+        BuildSpec: !Ref BuildSpec
+        Auth:
+          Type: OAUTH
+      Environment:
+        ComputeType: BUILD_GENERAL1_LARGE
+        Type: LINUX_CONTAINER
+        Image: aws/codebuild/java:openjdk-8
+        EnvironmentVariables:
+        - Name: REVISION
+          Value: !Ref DefaultRevision
+      Artifacts:
+        Type: S3
+        Location: !Sub "${AWS::StackName}-opencast"
+      ServiceRole: !GetAtt [MhOpsworksBuilderRole, Arn]
+      Tags:
+      - Key: Project
+        Value: MH
+      - Key: OU
+        Value: DE
