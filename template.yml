@@ -1,15 +1,23 @@
 AWSTemplateFormatVersion : '2010-09-09'
-Transform: AWS::Serverless-2016-10-31
 Description: cookbook and app packager for mh-opsworks
 
 Parameters:
-  BuildBucketName:
+  LambdaCodeBucket:
+    Type: String
+  PrimaryOCBucket:
+    Type: String
+  SecondaryOCBucket:
+    Type: String
+    Default: ""
+  PrimaryCookbookBucket:
+    Type: String
+  SecondaryCookbookBucket:
     Type: String
     Default: ""
   DefaultRevision:
     Type: String
     Default: develop
-  BuildSpec:
+  OpencastBuildSpec:
     Type: String
 
 Resources:
@@ -29,16 +37,66 @@ Resources:
           Effect: Allow
           Principal:
             Service: lambda.amazonaws.com
+        - Action: sts:AssumeRole
+          Effect: Allow
+          Principal:
+            Service: apigateway.amazonaws.com
       ManagedPolicyArns:
       - arn:aws:iam::aws:policy/AWSCodeBuildDeveloperAccess
       - arn:aws:iam::aws:policy/AWSLambdaExecute
+      Policies:
+      - PolicyName: !Sub "${AWS::StackName}-policy"
+        PolicyDocument:
+          Version: "2012-10-17"
+          Statement:
+          - Effect: "Allow"
+            Action:
+            - "logs:*"
+            - "lambda:*"
+            Resource: "*"
 
-  BuilderFunction:
-    Type: AWS::Serverless::Function
-    DependsOn: MhOpsworksBuilderRole
+  MhOpsworksBuilderApi:
+    Type: AWS::ApiGateway::RestApi
+    Properties:
+      Name: !Ref AWS::StackName
+
+  MhOpsworksBuilderResource:
+    Type: AWS::ApiGateway::Resource
+    Properties:
+      RestApiId: !Ref MhOpsworksBuilderApi
+      ParentId: !GetAtt [MhOpsworksBuilderApi, RootResourceId]
+      PathPart: "buildcookbook"
+
+  MhOpsworksBuilderWebhook:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      RestApiId:
+        Ref: MhOpsworksBuilderApi
+      ResourceId:
+        Ref: MhOpsworksBuilderResource
+      HttpMethod: POST
+      AuthorizationType: NONE
+      RequestParameters:
+        method.request.querystring.type: false
+        method.request.querystring.content: false
+      Integration:
+        Type: AWS_PROXY
+        IntegrationHttpMethod: POST
+        Credentials: !GetAtt [MhOpsworksBuilderRole, Arn]
+        Uri: !Sub arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${MhOpsworksBuilderFunction.Arn}/invocations
+      MethodResponses:
+      - ResponseModels:
+          application/json: Empty
+        StatusCode: 200
+
+  MhOpsworksBuilderFunction:
+    Type: AWS::Lambda::Function
+    DependsOn:
+      - MhOpsworksBuilderRole
     Properties:
       Handler: builder.handler
       Runtime: python3.6
+      Timeout: 300
       Role: !GetAtt [MhOpsworksBuilderRole, Arn]
       FunctionName: !Sub "${AWS::StackName}"
       Environment:
@@ -46,15 +104,23 @@ Resources:
           STACK_NAME: !Sub "${AWS::StackName}"
           COOKBOOK_BUILD_PROJECT: !Sub "cookbook-${AWS::StackName}"
           OPENCAST_BUILD_PROJECT: !Sub "opencast-${AWS::StackName}"
-      Events:
-        BuildCookbook:
-          Type: Api
-          Properties:
-            Path: /buildcookbook
-            Method: post
-      Tags:
-        Project: MH
-        OU: DE
+          PRIMARY_OPENCAST_BUCKET: !Ref PrimaryOCBucket
+          PRIMARY_COOKBOOK_BUCKET: !Ref PrimaryCookbookBucket
+          SECONDARY_OPENCAST_BUCKET: !Ref SecondaryOCBucket
+          SECONDARY_COOKBOOK_BUCKET: !Ref SecondaryCookbookBucket
+      Code:
+        S3Bucket: !Ref LambdaCodeBucket
+        S3Key: !Sub "${AWS::StackName}/builder.zip"
+
+
+  MhOpsworksBuilderDeploy:
+    Type: AWS::ApiGateway::Deployment
+    DependsOn:
+    - MhOpsworksBuilderWebhook
+    Properties:
+      RestApiId: !Ref MhOpsworksBuilderApi
+      Description: "Deployment for the mh opsworks builder api"
+      StageName: "live"
 
   CookbookBuildProject:
     Type: AWS::CodeBuild::Project
@@ -74,7 +140,7 @@ Resources:
           - Name: REVISION
             Value: !Ref DefaultRevision
       Artifacts:
-        Location: !Sub "{AWS::StackName}"
+        Location: !Ref PrimaryCookbookBucket
         Type: S3
         Name: cookbooks
       ServiceRole: !GetAtt [MhOpsworksBuilderRole, Arn]
@@ -99,7 +165,7 @@ Resources:
       Source:
         Location: "https://bitbucket.org/hudcede/matterhorn-dce-fork.git"
         Type: BITBUCKET
-        BuildSpec: !Ref BuildSpec
+        BuildSpec: !Ref OpencastBuildSpec
         Auth:
           Type: OAUTH
       Environment:
@@ -111,7 +177,7 @@ Resources:
           Value: !Ref DefaultRevision
       Artifacts:
         Type: S3
-        Location: !Sub "${AWS::StackName}-opencast"
+        Location: !Ref PrimaryOCBucket
       ServiceRole: !GetAtt [MhOpsworksBuilderRole, Arn]
       Tags:
       - Key: Project

@@ -9,6 +9,10 @@ logger.setLevel(logging.INFO)
 STACK_NAME = getenv('STACK_NAME')
 COOKBOOK_BUILD_PROJECT = getenv('COOKBOOK_BUILD_PROJECT')
 OPENCAST_BUILD_PROJECT = getenv('OPENCAST_BUILD_PROJECT')
+PRIMARY_OPENCAST_BUCKET = getenv('PRIMARY_OPENCAST_BUCKET')
+PRIMARY_COOKBOOK_BUCKET = getenv('PRIMARY_COOKBOOK_BUCKET')
+SECONDARY_OPENCAST_BUCKET = getenv('SECONDARY_OPENCAST_BUCKET')
+SECONDARY_COOKBOOK_BUCKET = getenv('SECONDARY_COOKBOOK_BUCKET')
 
 
 def handler(event, context):
@@ -82,18 +86,34 @@ def trigger_codebuild(build_project, revision):
     if "opencast" in build_project:
         cb_params['artifactsOverride'] = {
             'type': 'S3',
-            'location': "{}-opencast".format(STACK_NAME),
+            'location': PRIMARY_OPENCAST_BUCKET,
             'name': revision
         }
-    else:
-        return 204, "ignoring github requests"  # only temporary!!! while testing
+        if SECONDARY_OPENCAST_BUCKET:
+            cb_params['secondaryArtifactsOverride'] = [{
+                'type': 'S3',
+                'location': SECONDARY_OPENCAST_BUCKET,
+                'name': revision,
+                'artifactIdentifier': "secondary"
+            }]
+    elif SECONDARY_COOKBOOK_BUCKET:
+        cb_params['secondaryArtifactsOverride'] = [{
+            'type': 'S3',
+            'location': SECONDARY_COOKBOOK_BUCKET,
+            'name': revision,
+            'artifactIdentifier': 'secondary'
+        }]
 
     logger.info("CodeBuild params: %s" % json.dumps(cb_params))
 
     result = cb.start_build(**cb_params)
     logger.info("CodeBuild response: %s" % str(result))
 
-    status_code = result['ResponseMetadata']['HTTPStatusCode']
+    if 'build' in result:
+        status_code = 200
+        logger.info(result)
+    else:
+        status_code = 500
 
     if status_code != 200:
         msg = "Submit failure on CodeBuild build for %s@%s" % (build_project, revision)

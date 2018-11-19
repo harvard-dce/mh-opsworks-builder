@@ -5,9 +5,13 @@ phases:
       - echo build/test started at `date`
       - mvn clean install -DskipTests
       - echo build/test completed on `date`
-      - ls
       - ls build
 artifacts:
   files:
     - "**/opencast*.tar.gz"
   discard-paths: yes
+  secondary-artifacts:
+    secondary:
+      files:
+      - "**/opencast*.tar.gz"
+      discard-paths: yes

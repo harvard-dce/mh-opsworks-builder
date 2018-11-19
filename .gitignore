@@ -1,5 +1,6 @@
-serverless-output.yml
 .idea/*
 dist/*
 .env
 venv/*
+*.ipynb
+.ipynb_checkpoints/*
