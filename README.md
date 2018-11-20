@@ -24,7 +24,7 @@ Use `invoke stack.delete` to delete the stack.
 Once the stack is successfully created, check the resources list in the CloudFormation web console and click the link to the API Gateway instance.Find the API's "Prod" stage `buildcookbook` method and copy the invoke URL. It should look something like [https://foobarbaz.execute-api.us-east-1.amazonaws.com/Prod/buildcookbook]().
 
 ##### Github
-Copy the URL and head over to the Github project. In "Settings" -> "Webhooks" choose "Add Webhook". Paste the URL into the "Payload URL" field, set the content-type to "application/json". Choose "Let me select individual events" and select "Create" and "Push".
+Copy the URL and head over to the recipes Github project. In "Settings" -> "Webhooks" choose "Add Webhook". Paste the URL into the "Payload URL" field, set the content-type to "application/json". Choose "Let me select individual events" and select "Branch or tag creation" and "Pushes".
 
 ##### Bitbucket
 From the Bitbucket project page. Go to "Settings" and under "Workflow" select "Webhooks." Add a webhook with any descriptive name, the URL, and the trigger "repository push." Make sure to mark the new webhook "active" and save.
