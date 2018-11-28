@@ -15,6 +15,8 @@ LAMBDA_NAME = "builder"
 
 @task
 def deploy(ctx):
+    if not __required_buckets_exist(ctx):
+        return
     __deploy_stack(ctx)
 
 
@@ -71,7 +73,7 @@ def stack_tags():
     return "--tags {}".format(tags)
 
 
-def __check_required_buckets(ctx):
+def __required_buckets_exist(ctx):
     required_buckets = [
         getenv('LAMBDA_CODE_BUCKET'),
         getenv('PRIMARY_COOKBOOK_BUCKET'),
@@ -83,7 +85,9 @@ def __check_required_buckets(ctx):
         exists = ctx.run(cmd, hide=True, warn=True)
         if not exists.ok:
             print("Bucket '{}' does not exist!".format(bucket))
-            return
+            return False
+
+    return True
 
 
 def __wait_for(ctx, op):
@@ -106,8 +110,11 @@ def __deploy_stack(ctx):
     secondary_oc_bucket = getenv('SECONDARY_OC_BUCKET', False)
     secondary_cookbook_bucket = getenv('SECONDARY_COOKBOOK_BUCKET', False)
 
-    with open("buildspec.yml", "r") as f:
+    with open("oc-buildspec.yml", "r") as f:
         opencast_buildspec = f.read()
+
+    with open("cookbook-buildspec.yml", "r") as f:
+        cookbook_buildspec = f.read()
 
     cmd = "aws {} cloudformation deploy " \
           "--capabilities CAPABILITY_NAMED_IAM " \
@@ -118,12 +125,14 @@ def __deploy_stack(ctx):
           "PrimaryCookbookBucket={} " \
           "LambdaCodeBucket={} " \
           "OpencastBuildSpec='{}' " \
+          "CookbookBuildSpec='{}' " \
         .format(profile_arg(),
                 STACK_NAME,
                 getenv('PRIMARY_OC_BUCKET'),
                 getenv('PRIMARY_COOKBOOK_BUCKET'),
                 getenv('LAMBDA_CODE_BUCKET'),
-                opencast_buildspec)
+                opencast_buildspec,
+                cookbook_buildspec)
 
     optional = [('SecondaryOCBucket', secondary_oc_bucket),
                 ('SecondaryCookbookBucket', secondary_cookbook_bucket)]
